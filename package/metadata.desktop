@@ -1,16 +1,16 @@
 [Desktop Entry]
 Encoding=UTF-8
-Name=Days to new year
-Comment=shows how much time is left until new year/christmas
+Name=Special Day Countdown
+Comment=Counts down to a user-specified special day
 Icon=applications-system
 Type=Service
 
 X-KDE-ParentApp=
-X-KDE-PluginInfo-Author=Stepan Zubkov
-X-KDE-PluginInfo-Email=zubkovbackend@gmail.com
+X-KDE-PluginInfo-Author=Nisarahmed Hidayeti
+X-KDE-PluginInfo-Email=nisarahmed@example.com
 X-KDE-PluginInfo-License=MIT
-X-KDE-PluginInfo-Name=com.github.stepan-zubkov.days-to-new-year
-X-KDE-PluginInfo-Version=1.1.5
+X-KDE-PluginInfo-Name=com.github.nisarahmed-hidayeti.special-day-count-down
+X-KDE-PluginInfo-Version=1.0.0
 X-KDE-PluginInfo-Website=
 X-KDE-ServiceTypes=Plasma/Applet
 X-Plasma-API=declarativeappletscript
@@ -19,7 +19,7 @@ X-Plasma-RemoteLocation=
 X-KDE-PluginInfo-Category=Date and Time
 
 
-Name[nl]=Aftellen naar Nieuwjaar
-Name[ru]=Дни до нового года
-Comment[nl]=Toont het aantal dagen en uren tot Nieuwjaar en Kerstmis
-Comment[ru]=Показывает, сколько времени осталось до Нового Года/Рождества
+Name[nl]=Speciale Dag Countdown
+Name[ru]=Обратный отсчет до особого дня
+Comment[nl]=Telt af naar een door de gebruiker opgegeven speciale dag
+Comment[ru]=Считает время до пользовательского особого дня
