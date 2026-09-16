@@ -5,40 +5,41 @@ import org.kde.plasma.plasmoid 2.0
 import org.kde.plasma.components 2.0 as PlasmaComponents
 import org.kde.plasma.extras 2.0 as PlasmaExtras
 
+import "calc.js" as Calc
+
 Item {
     id: root
 
     Plasmoid.backgroundHints: PlasmaCore.Types.ShadowBackground | PlasmaCore.Types.ConfigurableBackground
 
-    // Configuration properties with defaults
-    property string eventName: plasmoid.configuration.eventName || "Special Day"
-    property var eventDate: plasmoid.configuration.eventDate || new Date()
-    property bool showTime: plasmoid.configuration.showTime !== undefined ? plasmoid.configuration.showTime : false
-    property int eventHour: plasmoid.configuration.eventHour !== undefined ? plasmoid.configuration.eventHour : 0
-    property int eventMinute: plasmoid.configuration.eventMinute !== undefined ? plasmoid.configuration.eventMinute : 0
-    property int eventSecond: plasmoid.configuration.eventSecond !== undefined ? plasmoid.configuration.eventSecond : 0
-    property bool showProgress: plasmoid.configuration.showProgress !== undefined ? plasmoid.configuration.showProgress : false
-    property string backgroundColor: plasmoid.configuration.backgroundColor || "#00000000" // Transparent
-    property real opacity: plasmoid.configuration.opacity !== undefined ? plasmoid.configuration.opacity : 1.0
-    property bool showBorder: plasmoid.configuration.showBorder !== undefined ? plasmoid.configuration.showBorder : false
-    property string borderColor: plasmoid.configuration.borderColor || "#FFFFFF"
-    property int borderWidth: plasmoid.configuration.borderWidth !== undefined ? plasmoid.configuration.borderWidth : 1
-    property string fontColor: plasmoid.configuration.fontColor || "#FFFFFF"
+    // Configuration property bindings
+    property string eventName: plasmoid.configuration.cfg_eventName || "Special Day"
+    property var eventDate: plasmoid.configuration.cfg_eventDate || new Date()
+    property bool showTime: plasmoid.configuration.cfg_showTime !== undefined ? plasmoid.configuration.cfg_showTime : false
+    property int eventHour: plasmoid.configuration.cfg_eventHour !== undefined ? plasmoid.configuration.cfg_eventHour : 0
+    property int eventMinute: plasmoid.configuration.cfg_eventMinute !== undefined ? plasmoid.configuration.cfg_eventMinute : 0
+    property int eventSecond: plasmoid.configuration.cfg_eventSecond !== undefined ? plasmoid.configuration.cfg_eventSecond : 0
+    property bool showProgress: plasmoid.configuration.cfg_showProgress !== undefined ? plasmoid.configuration.cfg_showProgress : false
+    property string backgroundColor: plasmoid.configuration.cfg_backgroundColor || "#00000000" // Transparent
+    property real opacity: plasmoid.configuration.cfg_opacity !== undefined ? plasmoid.configuration.cfg_opacity : 1.0
+    property bool showBorder: plasmoid.configuration.cfg_showBorder !== undefined ? plasmoid.configuration.cfg_showBorder : false
+    property string borderColor: plasmoid.configuration.cfg_borderColor || "#FFFFFF"
+    property int borderWidth: plasmoid.configuration.cfg_borderWidth !== undefined ? plasmoid.configuration.cfg_borderWidth : 1
+    property string fontColor: plasmoid.configuration.cfg_fontColor || "#FFFFFF"
+    property var startDate: plasmoid.configuration.cfg_startDate || new Date() // For progress calculation
 
-    // Internal state
+    // Internal state for display
     property int remainingDays: 0
     property int remainingHours: 0
     property int remainingMinutes: 0
     property int remainingSeconds: 0
     property bool isCompleted: false
-
-    // Target date/time for countdown
-    property var targetDate: new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(), eventHour, eventMinute, eventSecond)
+    property real progress: 0
 
     // Timer for updating countdown
     Timer {
         id: countdownTimer
-        interval: 1000 // Update every second for precision
+        interval: 1000 // Update every second
         running: true
         repeat: true
         onTriggered: updateCountdown()
@@ -46,7 +47,23 @@ Item {
 
     // Initialize on load
     Component.onCompleted: {
-        updateCountdown()
+        // Set default date if not configured (e.g., 30 days from now)
+        if (!plasmoid.configuration.cfg_eventDate) {
+            var defaultDate = new Date();
+            defaultDate.setDate(defaultDate.getDate() + 30);
+            plasmoid.configuration.cfg_eventDate = defaultDate;
+        }
+        updateCountdown();
+    }
+
+    // Update the countdown values
+    function updateCountdown() {
+        remainingDays = Calc.getDays(eventName, eventDate, showTime, eventHour, eventMinute, eventSecond);
+        remainingHours = Calc.getHours(eventName, eventDate, showTime, eventHour, eventMinute, eventSecond);
+        remainingMinutes = Calc.getMinutes(eventName, eventDate, showTime, eventHour, eventMinute, eventSecond);
+        remainingSeconds = Calc.getSeconds(eventName, eventDate, showTime, eventHour, eventMinute, eventSecond);
+        isCompleted = Calc.isCompleted(eventName, eventDate, showTime, eventHour, eventMinute, eventSecond);
+        progress = Calc.getProgress(startDate, eventDate, showTime, eventHour, eventMinute, eventSecond);
     }
 
     Plasmoid.fullRepresentation: Item {
@@ -73,7 +90,7 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     font.family: "Poppins, Arial, sans-serif"
                     font.pointSize: Math.max(12, parent.width * 0.08)
-                    color: isCompleted ? "#FF0000" : fontColor // Red when completed
+                    color: isCompleted ? "#FF0000" : fontColor
                     wrapMode: Text.Wrap
                     elide: Text.ElideRight
                     maximumLineCount: 2
@@ -151,7 +168,7 @@ Item {
                         anchors.left: parent.left
                         height: parent.height
                         width: parent.width * progress
-                        color: isCompleted ? "#FF0000" : "#00FF00" // Green when not completed, red when completed
+                        color: "#00FF00" // Green when not completed
                         radius: 2
                     }
                 }
@@ -177,46 +194,4 @@ Item {
     }
 
     Plasmoid.preferredRepresentation: Plasmoid.fullRepresentation
-
-    // Function to update the countdown
-    function updateCountdown() {
-        var now = new Date()
-        var target = targetDate
-
-        // Calculate difference
-        var diffMs = target - now
-
-        // Check if completed
-        isCompleted = diffMs <= 0
-
-        if (isCompleted) {
-            remainingDays = 0
-            remainingHours = 0
-            remainingMinutes = 0
-            remainingSeconds = 0
-        } else {
-            // Calculate time components
-            var diffSec = Math.floor(diffMs / 1000)
-
-            remainingDays = Math.floor(diffSec / (24 * 3600))
-            diffSec %= (24 * 3600)
-
-            remainingHours = Math.floor(diffSec / 3600)
-            diffSec %= 3600
-
-            remainingMinutes = Math.floor(diffSec / 60)
-            remainingSeconds = diffSec % 60
-        }
-
-        // Update progress if enabled
-        if (showProgress && !isCompleted) {
-            var startDate = plasmoid.configuration.startDate || new Date() // Default to now if not set
-            var totalTime = targetDate - startDate
-            var elapsedTime = targetDate - now
-            progress = Math.max(0, Math.min(1, 1 - (elapsedTime / totalTime)))
-        }
-    }
-
-    // Property for progress bar (0 to 1)
-    property real progress: 0
 }
