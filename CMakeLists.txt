@@ -5,7 +5,7 @@ project(special-day-count-down)
 find_package(ECM 1.4.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
-find_package(KF5Plasma REQUIRED)
+find_package(Plasma REQUIRED)
 
 # TODO: adapt "org.kde.plasma" here & elsewhere if needed (see README)
 plasma_install_package(package org.kde.plasma.special_day_count_down)

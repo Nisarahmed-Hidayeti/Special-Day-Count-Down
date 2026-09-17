@@ -35,6 +35,7 @@ Item {
     property int remainingSeconds: 0
     property bool isCompleted: false
     property real progress: 0
+    property string displayText: ""
 
     // Timer for updating countdown - adjust interval based on whether we're showing time
     Timer {
@@ -114,6 +115,22 @@ Item {
             } else {
                 progress = 0;
             }
+        }
+        
+        // Update display text for accessibility
+        if (isCompleted) {
+            displayText = eventName + " " + i18n("HAS ARRIVED");
+        } else {
+            var timeString = "";
+            if (showTime || remainingHours > 0 || remainingMinutes > 0 || remainingSeconds > 0) {
+                timeString = remainingDays + " days, " +
+                            remainingHours.toString().padStart(2, '0') + ":" +
+                            remainingMinutes.toString().padStart(2, '0') + ":" +
+                            remainingSeconds.toString().padStart(2, '0');
+            } else {
+                timeString = remainingDays + " " + i18nc("days or day", "%1 day", "%1 days", remainingDays);
+            }
+            displayText = eventName + ": " + timeString;
         }
     }
 
@@ -255,4 +272,9 @@ Item {
     }
 
     Plasmoid.preferredRepresentation: Plasmoid.fullRepresentation
+
+    // Tooltip for accessibility
+    ToolTip.enabled: true
+    ToolTip.text: displayText
+    ToolTip.visible: mouse.containsMouse
 }
