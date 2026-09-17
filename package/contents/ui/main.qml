@@ -84,7 +84,6 @@ Item {
             remainingMinutes = 0;
             remainingSeconds = 0;
             isCompleted = true;
-            progress = 1.0; // 100% complete
         } else {
             // Calculate time components
             var diffSec = Math.floor(diffMs / 1000);
@@ -99,21 +98,25 @@ Item {
             remainingSeconds = diffSec % 60;
             
             isCompleted = false;
-            
-            // Calculate progress (0 to 1)
-            if (startDate) {
-                var totalTime = targetDate - startDate;
-                var elapsedTime = targetDate - now;
-                
-                if (totalTime > 0) {
-                    progress = 1 - (elapsedTime / totalTime);
-                    progress = Math.max(0, Math.min(1, progress)); // Clamp between 0 and 1
-                } else {
-                    progress = 0;
-                }
+        }
+        
+        // Calculate progress using the shared function
+        progress = Calc.getProgress(startDate, eventDate, showTime, eventHour, eventMinute, eventSecond);
+        
+        // Update display text for accessibility
+        if (isCompleted) {
+            displayText = eventName + " " + i18n("HAS ARRIVED");
+        } else {
+            var timeString = "";
+            if (showTime || remainingHours > 0 || remainingMinutes > 0 || remainingSeconds > 0) {
+                timeString = remainingDays + " days, " +
+                            remainingHours.toString().padStart(2, '0') + ":" +
+                            remainingMinutes.toString().padStart(2, '0') + ":" +
+                            remainingSeconds.toString().padStart(2, '0');
             } else {
-                progress = 0;
+                timeString = remainingDays + " " + i18nc("days or day", "%1 day", "%1 days", remainingDays);
             }
+            displayText = eventName + ": " + timeString;
         }
     }
 
@@ -169,7 +172,7 @@ Item {
                         font.pointSize: Math.max(24, parent.width * 0.18)
                         font.weight: Font.Bold
                         color: isCompleted ? "#FF0000" : fontColor
-                        visible: !isCompleted || showTime // Show "00" when completed only if we also show time
+                        visible: true
                     }
 
                     // Time countdown (only shown if time is specified or if completed to show 00:00:00)
