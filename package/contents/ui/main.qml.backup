@@ -1,0 +1,258 @@
+import QtQuick 2.1
+import QtQuick.Layouts 1.1
+import org.kde.plasma.core 2.0 as PlasmaCore
+import org.kde.plasma.plasmoid 2.0
+import org.kde.plasma.components 2.0 as PlasmaComponents
+import org.kde.plasma.extras 2.0 as PlasmaExtras
+
+import "calc.js" as Calc
+
+Item {
+    id: root
+
+    Plasmoid.backgroundHints: PlasmaCore.Types.ShadowBackground | PlasmaCore.Types.ConfigurableBackground
+
+    // Configuration property bindings
+    property string eventName: plasmoid.configuration.cfg_eventName || "Special Day"
+    property var eventDate: plasmoid.configuration.cfg_eventDate || new Date()
+    property bool showTime: plasmoid.configuration.cfg_showTime !== undefined ? plasmoid.configuration.cfg_showTime : false
+    property int eventHour: plasmoid.configuration.cfg_eventHour !== undefined ? plasmoid.configuration.cfg_eventHour : 0
+    property int eventMinute: plasmoid.configuration.cfg_eventMinute !== undefined ? plasmoid.configuration.cfg_eventMinute : 0
+    property int eventSecond: plasmoid.configuration.cfg_eventSecond !== undefined ? plasmoid.configuration.cfg_eventSecond : 0
+    property bool showProgress: plasmoid.configuration.cfg_showProgress !== undefined ? plasmoid.configuration.cfg_showProgress : false
+    property string backgroundColor: plasmoid.configuration.cfg_backgroundColor || "#00000000" // Transparent
+    property real opacity: plasmoid.configuration.cfg_opacity !== undefined ? plasmoid.configuration.cfg_opacity : 1.0
+    property bool showBorder: plasmoid.configuration.cfg_showBorder !== undefined ? plasmoid.configuration.cfg_showBorder : false
+    property string borderColor: plasmoid.configuration.cfg_borderColor || "#FFFFFFFF"
+    property int borderWidth: plasmoid.configuration.cfg_borderWidth !== undefined ? plasmoid.configuration.cfg_borderWidth : 1
+    property string fontColor: plasmoid.configuration.cfg_fontColor || "#FFFFFFFF"
+    property var startDate: plasmoid.configuration.cfg_startDate || new Date() // For progress calculation
+
+    // Internal state for display
+    property int remainingDays: 0
+    property int remainingHours: 0
+    property int remainingMinutes: 0
+    property int remainingSeconds: 0
+    property bool isCompleted: false
+    property real progress: 0
+
+    // Timer for updating countdown - adjust interval based on whether we're showing time
+    Timer {
+        id: countdownTimer
+        interval: showTime ? 1000 : 60000 // Update every second if showing time, every minute otherwise
+        running: true
+        repeat: true
+        onTriggered: updateCountdown()
+    }
+
+    // Recalculate timer interval when showTime changes
+    onShowTimeChanged: {
+        countdownTimer.interval = showTime ? 1000 : 60000
+        updateCountdown() // Immediate update when changing time display preference
+    }
+
+    // Initialize on load
+    Component.onCompleted: {
+        console.log("Special Day Countdown plasmoid started");
+        // Set default date if not configured (e.g., 30 days from now)
+        if (!plasmoid.configuration.cfg_eventDate) {
+            var defaultDate = new Date();
+            defaultDate.setDate(defaultDate.getDate() + 30);
+            plasmoid.configuration.cfg_eventDate = defaultDate;
+        }
+        // Set default start date for progress if not configured
+        if (!plasmoid.configuration.cfg_startDate) {
+            plasmoid.configuration.cfg_startDate = new Date();
+        }
+        updateCountdown();
+    }
+
+    // Update the countdown values
+    function updateCountdown() {
+        // Create target date from the provided components
+        var targetDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate(),
+                                 eventHour, eventMinute, eventSecond);
+        
+        // Calculate time difference
+        var now = new Date();
+        var diffMs = targetDate - now;
+        
+        // If target has passed, we're completed
+        if (diffMs <= 0) {
+            remainingDays = 0;
+            remainingHours = 0;
+            remainingMinutes = 0;
+            remainingSeconds = 0;
+            isCompleted = true;
+            progress = 1.0; // 100% complete
+        } else {
+            // Calculate time components
+            var diffSec = Math.floor(diffMs / 1000);
+            
+            remainingDays = Math.floor(diffSec / (24 * 3600));
+            diffSec %= (24 * 3600);
+            
+            remainingHours = Math.floor(diffSec / 3600);
+            diffSec %= 3600;
+            
+            remainingMinutes = Math.floor(diffSec / 60);
+            remainingSeconds = diffSec % 60;
+            
+            isCompleted = false;
+            
+            // Calculate progress (0 to 1)
+            if (startDate) {
+                var totalTime = targetDate - startDate;
+                var elapsedTime = targetDate - now;
+                
+                if (totalTime > 0) {
+                    progress = 1 - (elapsedTime / totalTime);
+                    progress = Math.max(0, Math.min(1, progress)); // Clamp between 0 and 1
+                } else {
+                    progress = 0;
+                }
+            } else {
+                progress = 0;
+            }
+        }
+    }
+
+    Plasmoid.fullRepresentation: Item {
+        anchors.fill: parent
+        width: parent.width
+        height: parent.height
+
+        Rectangle {
+            id: backgroundRect
+            anchors.fill: parent
+            color: backgroundColor
+            opacity: opacity
+            border.width: showBorder ? borderWidth : 0
+            border.color: borderColor
+            radius: 4
+
+            ColumnLayout {
+                id: mainLayout
+                anchors.fill: parent
+                anchors.margins: Math.max(10, parent.width * 0.05) // Responsive margin
+                spacing: Math.max(5, parent.width * 0.01) // Responsive spacing
+
+                // Event name
+                Text {
+                    id: eventNameText
+                    text: eventName
+                    Layout.alignment: Qt.AlignHCenter
+                    font.family: "Poppins, Arial, sans-serif"
+                    font.pointSize: Math.max(12, parent.width * 0.08)
+                    font.weight: Font.DemiBold
+                    color: isCompleted ? "#FF0000" : fontColor
+                    wrapMode: Text.Wrap
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                    visible: true
+                }
+
+                // Spacer
+                Item { Layout.fillHeight: true }
+
+                // Main countdown display
+                Column {
+                    id: countdownColumn
+                    alignment: Qt.AlignHCenter
+                    spacing: Math.max(2, parent.width * 0.005)
+
+                    // Days countdown (always visible unless completed)
+                    Text {
+                        id: daysText
+                        text: isCompleted ? "00" : remainingDays.toString()
+                        font.family: "Poppins, Arial, sans-serif"
+                        font.pointSize: Math.max(24, parent.width * 0.18)
+                        font.weight: Font.Bold
+                        color: isCompleted ? "#FF0000" : fontColor
+                        visible: !isCompleted || showTime // Show "00" when completed only if we also show time
+                    }
+
+                    // Time countdown (only shown if time is specified or if completed to show 00:00:00)
+                    Row {
+                        id: timeRow
+                        spacing: 2
+                        visible: showTime || isCompleted
+
+                        Text {
+                            text: isCompleted ? "00" : remainingHours.toString().padStart(2, '0')
+                            font.family: "Poppins, Arial, sans-serif"
+                            font.pointSize: Math.max(20, parent.width * 0.15)
+                            font.weight: Font.Bold
+                            color: isCompleted ? "#FF0000" : fontColor
+                        }
+                        Text {
+                            text: ":"
+                            font.family: "Poppins, Arial, sans-serif"
+                            font.pointSize: Math.max(20, parent.width * 0.15)
+                            color: isCompleted ? "#FF0000" : fontColor
+                        }
+                        Text {
+                            text: isCompleted ? "00" : remainingMinutes.toString().padStart(2, '0')
+                            font.family: "Poppins, Arial, sans-serif"
+                            font.pointSize: Math.max(20, parent.width * 0.15)
+                            font.weight: Font.Bold
+                            color: isCompleted ? "#FF0000" : fontColor
+                        }
+                        Text {
+                            text: ":"
+                            font.family: "Poppins, Arial, sans-serif"
+                            font.pointSize: Math.max(20, parent.width * 0.15)
+                            color: isCompleted ? "#FF0000" : fontColor
+                        }
+                        Text {
+                            text: isCompleted ? "00" : remainingSeconds.toString().padStart(2, '0')
+                            font.family: "Poppins, Arial, sans-serif"
+                            font.pointSize: Math.max(20, parent.width * 0.15)
+                            font.weight: Font.Bold
+                            color: isCompleted ? "#FF0000" : fontColor
+                        }
+                    }
+                }
+
+                // Progress bar
+                Rectangle {
+                    id: progressBarBackground
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
+                    height: Math.max(4, parent.width * 0.02)
+                    color: "#FFFFFF33" // Semi-transparent white
+                    radius: 2
+                    visible: showProgress && !isCompleted
+
+                    Rectangle {
+                        id: progressBarFill
+                        anchors.left: parent.left
+                        height: parent.height
+                        width: parent.width * progress
+                        color: isCompleted ? "#FF0000" : "#00FF00" // Red when completed, green otherwise
+                        radius: 2
+                    }
+                }
+
+                // Arrival message (shown when completed)
+                Text {
+                    id: arrivalText
+                    text: eventName + " " + i18n("HAS ARRIVED")
+                    Layout.alignment: Qt.AlignHCenter
+                    font.family: "Poppins, Arial, sans-serif"
+                    font.pointSize: Math.max(12, parent.width * 0.08)
+                    color: "#FF0000"
+                    visible: isCompleted
+                    wrapMode: Text.Wrap
+                    elide: Text.ElideRight
+                    maximumLineCount: 2
+                }
+
+                // Spacer
+                Item { Layout.fillHeight: true }
+            }
+        }
+    }
+
+    Plasmoid.preferredRepresentation: Plasmoid.fullRepresentation
+}
